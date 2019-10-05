@@ -18,16 +18,15 @@ using Knet
 using VGG
 using IterTools
 
-function gram_matrix(x)
-    w, h, d, n = size(x)
-    a = similar(x, Float32, (d,d,n))
-    for i in 1:d
-        for j in 1:d
-            a[i,j,:] = sum(x[:,:,i,:] .* x[:,:,j,:], dims=(1,2))
-        end
+function gram_matrix(features; normalize=true)
+    H, W, C, N = size(features)
+    feat_reshaped = reshape(features, (H*W, C))  
+    gram_mat = transpose(feat_reshaped) * feat_reshaped  #shape:(C,C)
+    if normalize
+        return gram_mat ./ (2*H*W*C)
+    else
+        return gram_mat
     end
-    a ./= (w*h)
-    return a
 end
 
 struct FeatureExtractor
