@@ -25,24 +25,32 @@ function preprocess_image(img)
     return x
 end
 
-function postprocess_image(x)
+function postprocess_image(x; clamp_pixels=true)
+    x = value(x)
     if Knet.gpu() >= 0
         x = cpucopy(x)
     end
     x = (x .+ MEAN_COLOR) ./ 255
-    x = clamp.(x, 0.0f0, 1.0f0)
+    if clamp_pixels
+        x = clamp.(x, 0.0f0, 1.0f0)
+    end
     x = permutedims(x, (3,1,2))
     return colorview(RGB, x)
 end
 
 function gram_matrix(features; normalize=true)
-    H, W, C, N = size(features)
-    feat_reshaped = reshape(features, (H*W, C))  
-    gram_mat = transpose(feat_reshaped) * feat_reshaped  #shape:(C,C)
+    if ndims(features) == 4
+        features = features[:,:,:,1]
+    end
+    @assert ndims(features) == 3
+    H, W, C = size(features)
+    feat_reshaped = reshape(features, (H*W, C))
+    gram_mat = transpose(feat_reshaped) * feat_reshaped
+    @assert size(gram_mat) == (C, C)
     if normalize
-        return gram_mat ./ (2*H*W*C)
+        gram_mat ./ (H*W)
     else
-        return gram_mat
+        gram_mat
     end
 end
 
