@@ -8,51 +8,116 @@ https://arxiv.org/abs/1508.06576
 """
 module Gatys2015
 
-export style_transfer
+export StyleTransfer
 
 using Knet
 using Images
 using Statistics
+using ..VGGFeature
 using ..Utils
 
-STYLE_LAYERS = [:conv1_1, :conv2_1, :conv3_1, :conv4_1, :conv5_1]
-CONTENT_LAYER = :conv5_2
+struct StyleTransfer
+    content_layer
+    content_target
+    style_layers
+    style_targets
+end
 
-function loss(input; content_target, style_targets, content_weight, style_weight)
-    outputs = extract_features(input, STYLE_LAYERS..., CONTENT_LAYER)
-    style_outputs = outputs[1:end-1] .|> gram_matrix
-    content_output = outputs[end]
-    style_loss = mean(mean((so .- st) .^ 2) for (so, st) in zip(style_outputs, style_targets)) * 0.25f0
-    content_loss = mean((content_output .- content_target) .^ 2) * 0.5f0
+function StyleTransfer(content_img, style_img;
+                       content_layer = :conv5_2,
+                       style_layers = [:conv1_1, :conv2_1, :conv3_1, :conv4_1, :conv5_1])
+    # Preprocess images
+    content_img = preprocess_image(FEATURE_EXTRACTOR, content_img)
+    style_img = preprocess_image(FEATURE_EXTRACTOR, style_img)
+    
+    # Compute targets
+    sd = extract_features(style_img)
+    cd = extract_features(content_img)
+    style_targets = [gram_matrix(sd[l]) for l in style_layers]
+    content_target = cd[content_layer]
+
+    # Create Model
+    StyleTransfer(
+        content_layer,
+        content_target,
+        style_layers,
+        style_targets,
+    )
+end
+
+struct StyleTransferIterator
+    model::StyleTransfer
+    initial_image
+    iterations
+    content_weight
+    style_weight
+end
+
+function (self::StyleTransfer)(initial_image;
+                               iterations = 5000,
+                               content_weight = 0.001f0,
+                               style_weight = 0.0005f0)
+    StyleTransferIterator(
+        self,
+        initial_image,
+        iterations,
+        content_weight,
+        style_weight,
+    )
+end
+
+function Base.iterate(it::StyleTransferIterator)
+    # Preprocess input
+    img = preprocess_image(FEATURE_EXTRACTOR, it.initial_image)
+    img_loss = loss(img; model=it.model, content_weight=it.content_weight, style_weight=it.style_weight)
+    # Variable
+    image = Param(img, Adam())
+    # make state
+    state = (image,)
+    # Return
+    Base.iterate(it, state)
+end
+
+function Base.iterate(it::StyleTransferIterator, state)
+    # decompose state
+    (image,) = state
+    # Training
+    for _ in progress(1:it.iterations)
+        g, l = loss_grad(image; model=it.model, content_weight=it.content_weight, style_weight=it.style_weight)
+        update!(image, g)
+    end
+    # compute loss
+    img = postprocess_image(FEATURE_EXTRACTOR, image)
+    img_loss = loss(value(image); model=it.model, content_weight=it.content_weight, style_weight=it.style_weight)
+    # make next state
+    state = (image,)
+    # return
+    ((img, img_loss), state)
+end
+
+function loss(input; model, style_weight, content_weight)
+    # Extract features
+    od = extract_features(input)
+    style_outputs = [gram_matrix(od[l]) for l in model.style_layers]
+    content_output = od[model.content_layer]
+
+    # Compute Loss
+    style_loss = mean(mean((so .- st) .^ 2) for (so, st) in zip(style_outputs, model.style_targets)) * 0.25f0
+    content_loss = mean((content_output .- model.content_target) .^ 2) * 0.5f0
+
+    # Return
     style_loss * style_weight + content_loss * content_weight
 end
 
-loss_grad = gradloss(loss)
+function __init__()
+    global FEATURE_EXTRACTOR = FeatureExtractor()
+    global loss_grad = gradloss(loss)
+end
 
-function style_transfer(content_img, style_img, initial_img=content_img; content_weight = 0.001f0, style_weight = 0.0005f0, max_iterations=5000)
-    # Preprocess images
-    content_img = preprocess_image(content_img)
-    style_img = preprocess_image(style_img)
-    initial_img = preprocess_image(initial_img)
-    
-    # Compute targets
-    style_targets = extract_features(style_img, STYLE_LAYERS...) .|> gram_matrix
-    content_target = extract_features(content_img, CONTENT_LAYER)[1]
-
-    # Compute loss
-    @show loss(initial_img; content_target=content_target, style_targets=style_targets, content_weight=content_weight, style_weight=style_weight)
-    
-    # Variable
-    image = Param(initial_img, Adam())
-
-    # Training
-    for _ in progress(1:max_iterations)
-        g, l = loss_grad(image; content_target=content_target, style_targets=style_targets, content_weight=content_weight, style_weight=style_weight)
-        update!(image, g)
-    end
-
-    # Output
-    return postprocess_image(image; clamp_pixels=false)
+function extract_features(x)
+    @assert ndims(x) == 3
+    x = reshape(x, size(x)..., 1)
+    Dict(FEATURE_EXTRACTOR(x))
 end
 
 end

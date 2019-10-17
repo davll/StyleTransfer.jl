@@ -123,6 +123,4 @@ $RECYCLE.BIN/
 
 # End of https://www.gitignore.io/api/linux,macos,julia,windows,jupyternotebooks,visualstudiocode
 
-# generated images
-*-output.png
-
+/tmp
