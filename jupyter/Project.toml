@@ -1,0 +1,5 @@
+[deps]
+Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
+PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
+StyleTransfer = "585f4c16-dfb6-11e9-10bd-b5efeb05374f"
+VGG = "2e1e6a21-ea4d-4bc4-a426-5f6a3782a4c2"

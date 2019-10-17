@@ -597,6 +597,12 @@ git-tree-sha1 = "7bc504102ef0e49b19727ea45b54f611bee4320e"
 uuid = "5e0ebb24-38b0-5f93-81fe-25c709ecae67"
 version = "0.3.3"
 
+[[StyleTransfer]]
+deps = ["FileIO", "Images", "IterTools", "JLD2", "Knet", "Printf", "PyPlot", "Statistics", "TensorOperations", "VGG"]
+path = ".."
+uuid = "585f4c16-dfb6-11e9-10bd-b5efeb05374f"
+version = "0.1.0"
+
 [[TensorOperations]]
 deps = ["LRUCache", "LinearAlgebra", "Strided", "TupleTools"]
 git-tree-sha1 = "bd4560ba9a7690e6637fb7a0bf2e5b82793311f1"
@@ -651,9 +657,7 @@ uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 
 [[VGG]]
 deps = ["DataDeps", "ImageCore", "Knet", "MAT"]
-git-tree-sha1 = "63d591acafa9bc01bf72beff4faeabc6b85fb2b0"
-repo-rev = "master"
-repo-url = "https://github.com/davll/VGG.jl.git"
+path = "/home/david.lin/.julia/dev/VGG"
 uuid = "2e1e6a21-ea4d-4bc4-a426-5f6a3782a4c2"
 version = "0.1.0"
 

@@ -11,9 +11,9 @@ module Gatys2015
 export StyleTransfer
 
 using Knet
-using Images
+using VGG
 using Statistics
-using ..VGGFeature
+using IterTools
 using ..Utils
 
 struct StyleTransfer
@@ -27,8 +27,8 @@ function StyleTransfer(content_img, style_img;
                        content_layer = :conv5_2,
                        style_layers = [:conv1_1, :conv2_1, :conv3_1, :conv4_1, :conv5_1])
     # Preprocess images
-    content_img = preprocess_image(FEATURE_EXTRACTOR, content_img)
-    style_img = preprocess_image(FEATURE_EXTRACTOR, style_img)
+    content_img = preproc_img(content_img)
+    style_img = preproc_img(style_img)
     
     # Compute targets
     sd = extract_features(style_img)
@@ -68,7 +68,7 @@ end
 
 function Base.iterate(it::StyleTransferIterator)
     # Preprocess input
-    img = preprocess_image(FEATURE_EXTRACTOR, it.initial_image)
+    img = preproc_img(it.initial_image)
     img_loss = loss(img; model=it.model, content_weight=it.content_weight, style_weight=it.style_weight)
     # Variable
     image = Param(img, Adam())
@@ -87,13 +87,15 @@ function Base.iterate(it::StyleTransferIterator, state)
         update!(image, g)
     end
     # compute loss
-    img = postprocess_image(FEATURE_EXTRACTOR, image)
+    img = postproc_img(image)
     img_loss = loss(value(image); model=it.model, content_weight=it.content_weight, style_weight=it.style_weight)
     # make next state
     state = (image,)
     # return
     ((img, img_loss), state)
 end
+
+Base.IteratorSize(it::StyleTransferIterator) = Base.IsInfinite()
 
 function loss(input; model, style_weight, content_weight)
     # Extract features
@@ -110,14 +112,18 @@ function loss(input; model, style_weight, content_weight)
 end
 
 function __init__()
-    global FEATURE_EXTRACTOR = FeatureExtractor()
+    global VGGMODEL = load_model(VGG19)
     global loss_grad = gradloss(loss)
 end
 
 function extract_features(x)
-    @assert ndims(x) == 3
-    x = reshape(x, size(x)..., 1)
-    Dict(FEATURE_EXTRACTOR(x))
+    if ndims(x) == 3
+        x = reshape(x, size(x)..., 1)
+    end
+    Dict(takewhile(t -> t[1] != :fc6, VGGMODEL(x)))
 end
+
+preproc_img(x) = preprocess_image(VGGMODEL, x)
+postproc_img(x) = postprocess_image(VGGMODEL, x)
 
 end
