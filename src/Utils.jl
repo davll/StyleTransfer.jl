@@ -1,6 +1,7 @@
 module Utils
 
 export gram_matrix
+export reflect_pad
 
 function gram_matrix(features; normalize=true)
     if ndims(features) == 4
@@ -16,6 +17,12 @@ function gram_matrix(features; normalize=true)
     else
         gram_mat
     end
+end
+
+function reflect_pad(x, padding)
+    x = cat(x[:,padding:-1:1,:,:], x, x[:,end:-1:end-padding+1,:,:], dims=2)
+    x = cat(x[padding:-1:1,:,:,:], x, x[end:-1:end-padding+1,:,:,:], dims=1)
+    return x
 end
 
 end
